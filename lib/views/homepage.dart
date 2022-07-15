@@ -1,10 +1,12 @@
 // ignore_for_file: prefer_const_constructors
-
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:brasil_fields/brasil_fields.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class Home extends StatefulWidget {
   @override
@@ -15,9 +17,13 @@ TextEditingController txtcep = new TextEditingController();
 String resultado = "";
 
 class _HomeState extends State<Home> {
+  Completer<GoogleMapController> _controller = Completer();
   bool _loading = false;
   bool _enableField = true;
   final _formKey = GlobalKey<FormState>();
+
+  double lat = -23.602683;
+  double lng = -48.052764;
 
   //Pegar o Cep digitado no campo de texto.
 
@@ -27,7 +33,7 @@ class _HomeState extends State<Home> {
     // Retirando a mask do cep.
     String cepnullmaskcep = cep.replaceAll("-", "").replaceAll(".", "");
 
-    //Configurando url API CEP.
+    // Configurando url API CEP.
     String url = "https://viacep.com.br/ws/$cepnullmaskcep/json";
 
     http.Response response;
@@ -50,6 +56,26 @@ class _HomeState extends State<Home> {
     }
   }
 
+  // Pegando a posiçãoa atual e validando permissoes.
+  Future<Position> _posicaoAtual() async {
+    LocationPermission permissao;
+    bool ativado = await Geolocator.isLocationServiceEnabled();
+
+    if (!ativado) {
+      return Future.error('Por favor, habilite a localização no smarthone');
+    }
+
+    permissao = await Geolocator.checkPermission();
+    if (permissao == LocationPermission.denied) {
+      permissao = await Geolocator.requestPermission();
+      if (permissao == LocationPermission.denied) {
+        return Future.error('Você precisa autorizar o acesso à localização.');
+      }
+    } //continuar aqui.
+
+    return await Geolocator.getCurrentPosition();
+  }
+
   @override
   void dispose() {
     super.dispose();
@@ -62,11 +88,11 @@ class _HomeState extends State<Home> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
+        backgroundColor: Colors.yellowAccent,
         title: Text(
           "Consultar CEP",
           style: TextStyle(color: Colors.black),
         ),
-        backgroundColor: Colors.yellowAccent,
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(20.0),
@@ -76,6 +102,7 @@ class _HomeState extends State<Home> {
             _buildSearchCepTextField(),
             _buildResultForm(),
             _buildSearchCepButton(),
+            _buildGoogleMaps(),
           ],
         ),
       ),
@@ -90,16 +117,16 @@ class _HomeState extends State<Home> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TextFormField(
+            controller: txtcep,
+            enabled: _enableField,
             inputFormatters: [
               FilteringTextInputFormatter.digitsOnly,
               CepInputFormatter(),
             ],
-            controller: txtcep,
             cursorColor: Colors.black,
             style: TextStyle(color: Colors.black, fontSize: 20),
             autofocus: true,
             textInputAction: TextInputAction.done,
-            enabled: _enableField,
             keyboardType: TextInputType.number,
             maxLength: 10,
             decoration: InputDecoration(
@@ -140,7 +167,7 @@ class _HomeState extends State<Home> {
       child: Text(
         "$resultado",
         style: TextStyle(
-          fontSize: 20,
+          fontSize: 15,
           color: Colors.blue,
         ),
       ),
@@ -149,11 +176,10 @@ class _HomeState extends State<Home> {
 
 // Criação do botão consultar.
   Widget _buildSearchCepButton() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 40),
+    return Container(
+      padding: EdgeInsets.only(top: 40, bottom: 40),
       child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisAlignment: MainAxisAlignment.end,
           children: <Widget>[
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -172,6 +198,22 @@ class _HomeState extends State<Home> {
               ),
             ),
           ]),
+    );
+  }
+
+  Widget _buildGoogleMaps() {
+    return Container(
+      height: 400,
+      child: GoogleMap(
+        mapType: MapType.terrain,
+        initialCameraPosition: CameraPosition(
+          target: LatLng(lat, lng),
+          zoom: 16,
+        ),
+        onMapCreated: (GoogleMapController controller) {
+          _controller.complete(controller);
+        },
+      ),
     );
   }
 }
