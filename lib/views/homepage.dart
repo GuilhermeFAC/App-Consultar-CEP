@@ -1,12 +1,10 @@
 // ignore_for_file: prefer_const_constructors
-import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:brasil_fields/brasil_fields.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class Home extends StatefulWidget {
   @override
@@ -17,13 +15,9 @@ TextEditingController txtcep = new TextEditingController();
 String resultado = "";
 
 class _HomeState extends State<Home> {
-  Completer<GoogleMapController> _controller = Completer();
   bool _loading = false;
   bool _enableField = true;
   final _formKey = GlobalKey<FormState>();
-
-  double lat = -23.602683;
-  double lng = -48.052764;
 
   //Pegar o Cep digitado no campo de texto.
 
@@ -57,24 +51,6 @@ class _HomeState extends State<Home> {
   }
 
   // Pegando a posiçãoa atual e validando permissoes.
-  Future<Position> _posicaoAtual() async {
-    LocationPermission permissao;
-    bool ativado = await Geolocator.isLocationServiceEnabled();
-
-    if (!ativado) {
-      return Future.error('Por favor, habilite a localização no smarthone');
-    }
-
-    permissao = await Geolocator.checkPermission();
-    if (permissao == LocationPermission.denied) {
-      permissao = await Geolocator.requestPermission();
-      if (permissao == LocationPermission.denied) {
-        return Future.error('Você precisa autorizar o acesso à localização.');
-      }
-    } //continuar aqui.
-
-    return await Geolocator.getCurrentPosition();
-  }
 
   @override
   void dispose() {
@@ -102,7 +78,6 @@ class _HomeState extends State<Home> {
             _buildSearchCepTextField(),
             _buildResultForm(),
             _buildSearchCepButton(),
-            _buildGoogleMaps(),
           ],
         ),
       ),
@@ -198,22 +173,6 @@ class _HomeState extends State<Home> {
               ),
             ),
           ]),
-    );
-  }
-
-  Widget _buildGoogleMaps() {
-    return Container(
-      height: 400,
-      child: GoogleMap(
-        mapType: MapType.terrain,
-        initialCameraPosition: CameraPosition(
-          target: LatLng(lat, lng),
-          zoom: 16,
-        ),
-        onMapCreated: (GoogleMapController controller) {
-          _controller.complete(controller);
-        },
-      ),
     );
   }
 }
